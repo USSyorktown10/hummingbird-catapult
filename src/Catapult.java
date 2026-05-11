@@ -83,6 +83,8 @@ public class Catapult {
         Hummingbird catapult = new Hummingbird();
         Scanner scan = new Scanner(System.in);
         boolean locked = true;
+        String red = "\u001B[31m";
+        String reset = "\u001B[0m";
 
         // Stops all hummingbird functions if ^C is used to stop
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -100,7 +102,7 @@ public class Catapult {
                 notch = scan.nextInt();
                 
                 if (notch > 6 || notch < 1) {
-                    System.out.println(notch + " is an invalid notch setting. Please input a number between 1 and 6.");
+                    System.out.println(red + notch + " is an invalid notch setting. Please input a number between 1 and 6." + reset);
                 } else {
                     break;
                 }
@@ -283,10 +285,12 @@ public class Catapult {
                             case 1 -> catapult.setDisplay(tinyTime);
                             default -> catapult.setDisplay(tinyTime);
                         }
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
+                        if (i != 0) {
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
                         }
                     }
                     System.out.println("Timer finished. Catapult armed.");
@@ -307,10 +311,12 @@ public class Catapult {
                             case 1 -> catapult.setDisplay(tinyTime);
                             default -> catapult.setDisplay(tinyTime);
                         }
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
+                        if (i != 0) {
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
                         }
                     }
                     System.out.println("Timer finished. Firing.");
@@ -374,10 +380,12 @@ public class Catapult {
                                 case 1 -> catapult.setDisplay(tinyTime);
                                 default -> catapult.setDisplay(tinyTime);
                             }
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
+                            if (i != 0) {
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
                             }
                         }
                         System.out.println("Timer finished. firing.");
