@@ -57,6 +57,7 @@
  * 1.2.1               Added LED control with Red and Green lights to show readiness and activity, as well as clean input statements to allow best setup
  * 1.2.2               Added Keyboard Inturrupt stopping so that all hummingbird functions sucessfully stop when terminating with ^C.
  * 1.3.0               Added timer functionality for shots, allows countdowns for proximity and firing. Updated docs to match
+ * 1.3.1               Turned notch adjuster into a class for optimization and versatility
  */
 
 import java.util.Scanner;
@@ -76,6 +77,113 @@ public class Catapult {
       }
 
       return target;
+    }
+
+    public static int[] setNotch(Scanner sc, Hummingbird catapult, boolean useTime, int timer, int timeSetting, int pos, boolean aborted) {
+        int option;
+        while (true){
+            try {
+                if (aborted){
+                    System.out.println("Shot aborted. Set another notch (1-6), keep current (0), or exit (9).");
+                } else {
+                    System.out.println("Shot fired. Set another notch (1-6), keep current (0), or exit (9).");
+                }
+                option = sc.nextInt();
+                if (option < 0 || (option > 6 && option < 9) || option > 9) {
+                    System.out.println(option + " is an invalid notch setting. Please input a number between 1 and 6.");
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                System.out.println("Invalid input. Please try again.");
+                sc.next();
+            }
+        }
+
+        // Exit option
+        if (option == 9){
+            catapult.stopAll();
+            catapult.disconnect();
+            sc.close();
+            System.exit(0);
+        // Change notch
+        } else if (option != 0 && option != 9 && option <=7 && option >= 1){
+            pos = Catapult.setTarget(option);
+            System.out.println("\nNotch set to " + option + ", distance of " + pos + ".");
+        } 
+        // Edit timer
+        if (useTime) {
+            while (true) { 
+                try {
+                    System.out.println("Follow same timer settings (0), set new timer (1), or set new timer mode + time (2).");
+                    int timerOption = sc.nextInt();
+                    if (timerOption == 0) {
+                        System.out.println("Following same timer settings.");
+                        break;
+                    } else if (timerOption == 1) {
+                        // A lot of sanitation for good inputs, sets new timer
+                        while (true) {
+                            try {
+                                System.out.println("Set new timer in seconds:");
+                                timer = sc.nextInt();
+                                
+                                if (timer > 3600 || timer < 1) {
+                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
+                                } else {
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                System.out.println("Invalid input. Please try again.");
+                                sc.next();
+                            }
+                        }
+                        System.out.println("New timer set: " + timer + " seconds.");
+                        break;
+                    } else if (timerOption == 2) {
+                        // Sets new timer and mode
+                        while (true) {
+                            try {
+                                System.out.println("Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).");
+                                timeSetting = sc.nextInt();
+                                
+                                if (timeSetting > 3 || timeSetting < 1) {
+                                    System.out.println(timeSetting + " is an invalid setting. Please input a number between 1 and 3.");
+                                } else {
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                System.out.println("Invalid input. Please try again.");
+                                sc.next();
+                            }
+                        }
+                        System.out.println("Time setting set to " + timeSetting + ".");
+                        while (true) {
+                            try {
+                                System.out.println("Set new timer in seconds:");
+                                timer = sc.nextInt();
+                                
+                                if (timer > 3600 || timer < 1) {
+                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
+                                } else {
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                System.out.println("Invalid input. Please try again.");
+                                sc.next();
+                            }
+                        }
+                        System.out.println("New timer set: " + timer + " seconds.");
+                        break;
+                    } else {
+                        System.out.println(timerOption + " is an invalid option.");
+                    }
+                } catch (Exception e) {
+                    System.out.println("Invalid input. Please try again.");
+                    sc.next();
+                }
+            }
+        }
+        return new int[] { pos, timer, timeSetting };
     }
 
     public static void main(String[] args) {
@@ -418,210 +526,22 @@ public class Catapult {
 
                     // Check if user wants to edit notch when prompt mode is active
                     if (editNotch.equals("y")){
-                        int option;
-                        while (true){
-                            try {
-                                System.out.println("Shot fired. Set another notch (1-6), keep current (0), or exit (9).");
-                                option = scan.nextInt();
-                                if (option < 0 || (option > 6 && option < 9) || option > 9) {
-                                    System.out.println(option + " is an invalid notch setting. Please input a number between 1 and 6.");
-                                } else {
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                System.out.println("Invalid input. Please try again.");
-                                scan.next();
-                            }
-                        }
-
-                        // Exit option
-                        if (option == 9){
-                            catapult.stopAll();
-                            catapult.disconnect();
-                            scan.close();
-                            System.exit(0);
-                        // Change notch
-                        } else if (option != 0 && option != 9 && option <=7 && option >= 1){
-                            pos = Catapult.setTarget(option);
-                            System.out.println("\nNotch set to " + option + ", distance of " + pos + ".");
-                        } 
-                        // Edit timer
-                        if (useTime) {
-                            while (true) { 
-                                try {
-                                    System.out.println("Follow same timer settings (0), set new timer (1), or set new timer mode + time (2).");
-                                    int timerOption = scan.nextInt();
-                                    if (timerOption == 0) {
-                                        System.out.println("Following same timer settings.");
-                                        break;
-                                    } else if (timerOption == 1) {
-                                        // A lot of sanitation for good inputs, sets new timer
-                                        while (true) {
-                                            try {
-                                                System.out.println("Set new timer in seconds:");
-                                                timer = scan.nextInt();
-                                                
-                                                if (timer > 3600 || timer < 1) {
-                                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                                                } else {
-                                                    break;
-                                                }
-                                            } catch (Exception e) {
-                                                System.out.println("Invalid input. Please try again.");
-                                                scan.next();
-                                            }
-                                        }
-                                        System.out.println("New timer set: " + timer + " seconds.");
-                                        break;
-                                    } else if (timerOption == 2) {
-                                        // Sets new timer and mode
-                                        while (true) {
-                                            try {
-                                                System.out.println("Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).");
-                                                timeSetting = scan.nextInt();
-                                                
-                                                if (timeSetting > 3 || timeSetting < 1) {
-                                                    System.out.println(timeSetting + " is an invalid setting. Please input a number between 1 and 3.");
-                                                } else {
-                                                    break;
-                                                }
-                                            } catch (Exception e) {
-                                                System.out.println("Invalid input. Please try again.");
-                                                scan.next();
-                                            }
-                                        }
-                                        System.out.println("Time setting set to " + timeSetting + ".");
-                                        while (true) {
-                                            try {
-                                                System.out.println("Set new timer in seconds:");
-                                                timer = scan.nextInt();
-                                                
-                                                if (timer > 3600 || timer < 1) {
-                                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                                                } else {
-                                                    break;
-                                                }
-                                            } catch (Exception e) {
-                                                System.out.println("Invalid input. Please try again.");
-                                                scan.next();
-                                            }
-                                        }
-                                        System.out.println("New timer set: " + timer + " seconds.");
-                                        break;
-                                    } else {
-                                        System.out.println(timerOption + " is an invalid option.");
-                                    }
-                                } catch (Exception e) {
-                                    System.out.println("Invalid input. Please try again.");
-                                    scan.next();
-                                }
-                            }
-                        }
+                        int[] results = setNotch(scan, catapult, useTime, timer, timeSetting, pos, false);
+                        pos = results[0];
+                        timer = results[1];
+                        timeSetting = results[2];
                     } else if (useTarget.equals("n")) {
                         System.out.println("\nShot fired.");
                     }
                 } else {
+                    // Aborted section: This section runs when the shot is aborted by pressing "A" before shot is fired.
                     // Check if user wants to edit notch when prompt mode is active
                     if (editNotch.equals("y")){
-                        int option;
-                        while (true){
-                            try {
-                                System.out.println("Shot aborted. Set another notch (1-6), keep current (0), or exit (9).");
-                                option = scan.nextInt();
-                                if (option < 0 || (option > 6 && option < 9) || option > 9) {
-                                    System.out.println(option + " is an invalid notch setting. Please input a number between 1 and 6.");
-                                } else {
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                System.out.println("Invalid input. Please try again.");
-                                scan.next();
-                            }
-                        }
-
-                        // Exit option
-                        if (option == 9){
-                            catapult.stopAll();
-                            catapult.disconnect();
-                            scan.close();
-                            System.exit(0);
-                        // Change notch
-                        } else if (option != 0 && option != 9 && option <=7 && option >= 1){
-                            pos = Catapult.setTarget(option);
-                            System.out.println("\nNotch set to " + option + ", distance of " + pos + ".");
-                        } 
-                        // Edit timer settings
-                        if (useTime) {
-                            while (true) { 
-                                try {
-                                    System.out.println("Follow same timer settings (0), set new timer (1), or set new timer mode + time (2).");
-                                    int timerOption = scan.nextInt();
-                                    if (timerOption == 0) {
-                                        System.out.println("Following same timer settings.");
-                                        break;
-                                    } else if (timerOption == 1) {
-                                        // Sets new timer
-                                        while (true) {
-                                            try {
-                                                System.out.println("Set new timer in seconds:");
-                                                timer = scan.nextInt();
-                                                
-                                                if (timer > 3600 || timer < 1) {
-                                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                                                } else {
-                                                    break;
-                                                }
-                                            } catch (Exception e) {
-                                                System.out.println("Invalid input. Please try again.");
-                                                scan.next();
-                                            }
-                                        }
-                                        System.out.println("New timer set: " + timer + " seconds.");
-                                        break;
-                                    } else if (timerOption == 2) {
-                                        // Edits mode and timer
-                                        while (true) {
-                                            try {
-                                                System.out.println("Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).");
-                                                timeSetting = scan.nextInt();
-                                                
-                                                if (timeSetting > 3 || timeSetting < 1) {
-                                                    System.out.println(timeSetting + " is an invalid setting. Please input a number between 1 and 3.");
-                                                } else {
-                                                    break;
-                                                }
-                                            } catch (Exception e) {
-                                                System.out.println("Invalid input. Please try again.");
-                                                scan.next();
-                                            }
-                                        }
-                                        System.out.println("Time setting set to " + timeSetting + ".");
-                                        while (true) {
-                                            try {
-                                                System.out.println("Set new timer in seconds:");
-                                                timer = scan.nextInt();
-                                                
-                                                if (timer > 3600 || timer < 1) {
-                                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                                                } else {
-                                                    break;
-                                                }
-                                            } catch (Exception e) {
-                                                System.out.println("Invalid input. Please try again.");
-                                                scan.next();
-                                            }
-                                        }
-                                        System.out.println("New timer set: " + timer + " seconds.");
-                                        break;
-                                    } else {
-                                        System.out.println(timerOption + " is an invalid option.");
-                                    }
-                                } catch (Exception e) {
-                                    System.out.println("Invalid input. Please try again.");
-                                    scan.next();
-                                }
-                            }
-                        }
+                        if (editNotch.equals("y")){
+                        int[] results = setNotch(scan, catapult, useTime, timer, timeSetting, pos, true);
+                        pos = results[0];
+                        timer = results[1];
+                        timeSetting = results[2];
                     } else if (useTarget.equals("n")) {
                         System.out.println("\nShot aborted.");
                     }
@@ -638,4 +558,5 @@ public class Catapult {
             }
         }
     }
+}
 }
