@@ -35,6 +35,7 @@ Can also be found in the prologue of ```Catapult.java```
 |1.2.2|Added Keyboard Inturrupt stopping so that all hummingbird functions sucessfully stop when terminating with ^C.|
 |1.3.0|Added timer functionality for shots, allows countdowns for proximity and firing. Updated docs to match|
 |1.3.1|Turned notch adjuster into a class for optimization and versatility|
+|1.3.2|Lots of optimization and condensing, cleaning up a ton of code and making methods more efficient|
 
 All code by: [USSyorktown10](https://github.com/USSyorktown10)
 
