@@ -58,11 +58,26 @@
  * 1.2.2               Added Keyboard Inturrupt stopping so that all hummingbird functions sucessfully stop when terminating with ^C.
  * 1.3.0               Added timer functionality for shots, allows countdowns for proximity and firing. Updated docs to match
  * 1.3.1               Turned notch adjuster into a class for optimization and versatility
+ * 1.3.2               Lots of optimization and condensing, cleaning up a ton of code and making methods
  */
 
 import java.util.Scanner;
 
 public class Catapult {
+    private static final int[] OFF = new int[25];
+    private static final int[] SHOOT = {0,0,0,0,0, 0,0,0,0,0, 0,0,1,0,0, 0,0,0,0,0, 0,0,0,0,0};
+    private static final int[] BORDER = {1,1,1,1,1, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 1,1,1,1,1};
+    private static final int[] CLOSER = {0,0,0,0,0, 0,1,1,1,0, 0,1,0,1,0, 0,1,1,1,0, 0,0,0,0,0};
+    
+    // Countdown stages
+    private static final int[][] STAGES = {
+        {0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 1,1,1,1,1}, // Tiny
+        {0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 1,1,1,1,1, 1,1,1,1,1}, // Less
+        {0,0,0,0,0, 0,0,0,0,0, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1}, // Mid
+        {0,0,0,0,0, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1}, // High
+        {1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1}  // Full
+    };
+
     // Sets target distance based on notch setting
     public static int setTarget(int setting) {
       int target;
@@ -79,27 +94,62 @@ public class Catapult {
       return target;
     }
 
-    public static int[] setNotch(Scanner sc, Hummingbird catapult, boolean useTime, int timer, int timeSetting, int pos, boolean aborted) {
-        int option;
-        while (true){
+    // Helper class to input strings cleanly
+    public static String inputString(Scanner sc, String prompt, boolean ynBounds) {
+        String response;
+        while (true) {
             try {
-                if (aborted){
-                    System.out.println("Shot aborted. Set another notch (1-6), keep current (0), or exit (9).");
-                } else {
-                    System.out.println("Shot fired. Set another notch (1-6), keep current (0), or exit (9).");
-                }
-                option = sc.nextInt();
-                if (option < 0 || (option > 6 && option < 9) || option > 9) {
-                    System.out.println(option + " is an invalid notch setting. Please input a number between 1 and 6.");
+                System.out.println(prompt);
+                response = sc.nextLine();
+                if (ynBounds && (!response.equals("y") && !response.equals("n"))) {
+                    System.out.println("\"" + response + "\" is an invalid input. Input either \"y\" or \"n\".");
                 } else {
                     break;
                 }
             } catch (Exception e) {
                 System.out.println("Invalid input. Please try again.");
-                sc.next();
+                sc.nextLine();
             }
         }
+        return response;
+    }
 
+    // Helper class to input ints cleanly
+    public static int inputInt(Scanner sc, String prompt, int min, int max, boolean setNotch) {
+        int response;
+        while (true) {
+            try {
+                System.out.println(prompt);
+                response = sc.nextInt();
+                sc.nextLine();
+                if (setNotch) {
+                    if (response != 0 && response != 9 && (response >=7 || response <= 1)) {
+                        System.out.println("Invalid input.");
+                    } else {
+                        break;
+                    }
+                } else {
+                    if (response < min || response > max) {
+                        System.out.println("Invalid input. Please enter a number between " + min + " and " + max + ".");
+                    } else {
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Invalid input. Please try again.");
+                sc.nextLine();
+            }
+        }
+        return response;
+    }
+
+    public static int[] setNotch(Scanner sc, Hummingbird catapult, boolean useTime, int timer, int timeSetting, int pos, boolean aborted) {
+        int option;
+        if (aborted){
+            option = inputInt(sc, "Shot aborted. Set another notch (1-6), keep current (0), or exit (9).", 0, 9, true);
+        } else {
+            option = inputInt(sc, "Shot fired. Set another notch (1-6), keep current (0), or exit (9).", 0, 9, true);
+        }
         // Exit option
         if (option == 9){
             catapult.stopAll();
@@ -113,77 +163,35 @@ public class Catapult {
         } 
         // Edit timer
         if (useTime) {
-            while (true) { 
-                try {
-                    System.out.println("Follow same timer settings (0), set new timer (1), or set new timer mode + time (2).");
-                    int timerOption = sc.nextInt();
-                    if (timerOption == 0) {
-                        System.out.println("Following same timer settings.");
-                        break;
-                    } else if (timerOption == 1) {
-                        // A lot of sanitation for good inputs, sets new timer
-                        while (true) {
-                            try {
-                                System.out.println("Set new timer in seconds:");
-                                timer = sc.nextInt();
-                                
-                                if (timer > 3600 || timer < 1) {
-                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                                } else {
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                System.out.println("Invalid input. Please try again.");
-                                sc.next();
-                            }
-                        }
-                        System.out.println("New timer set: " + timer + " seconds.");
-                        break;
-                    } else if (timerOption == 2) {
-                        // Sets new timer and mode
-                        while (true) {
-                            try {
-                                System.out.println("Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).");
-                                timeSetting = sc.nextInt();
-                                
-                                if (timeSetting > 3 || timeSetting < 1) {
-                                    System.out.println(timeSetting + " is an invalid setting. Please input a number between 1 and 3.");
-                                } else {
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                System.out.println("Invalid input. Please try again.");
-                                sc.next();
-                            }
-                        }
-                        System.out.println("Time setting set to " + timeSetting + ".");
-                        while (true) {
-                            try {
-                                System.out.println("Set new timer in seconds:");
-                                timer = sc.nextInt();
-                                
-                                if (timer > 3600 || timer < 1) {
-                                    System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                                } else {
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                System.out.println("Invalid input. Please try again.");
-                                sc.next();
-                            }
-                        }
-                        System.out.println("New timer set: " + timer + " seconds.");
-                        break;
-                    } else {
-                        System.out.println(timerOption + " is an invalid option.");
-                    }
-                } catch (Exception e) {
-                    System.out.println("Invalid input. Please try again.");
-                    sc.next();
-                }
+            int timerOption;
+            timerOption = inputInt(sc, "Follow same timer settings (0), set new timer (1), or set new timer mode + time (2).", 0, 2, false);
+            if (timerOption == 0) {
+                System.out.println("Following same timer settings.");
+            } else if (timerOption == 1) {
+                timer = inputInt(sc, "Set new timer in seconds:", 0, 3600, false);
+                System.out.println("New timer set: " + timer + " seconds.");
+            } else if (timerOption == 2) {
+                timeSetting = inputInt(sc, "Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).", 0, 3, false);
+                System.out.println("Time setting set to " + timeSetting + ".");
+                timer = inputInt(sc, "Set new timer in seconds:", 0, 3600, false);
+                System.out.println("New timer set: " + timer + " seconds.");
+            } else {
+                System.out.println(timerOption + " is an invalid option.");
             }
         }
+        System.out.println("\nSetup complete. Press A to lock catapult when ready.");
         return new int[] { pos, timer, timeSetting };
+    }
+
+    // Condensed and optimized countdown for display
+    private static void runCountdown(Hummingbird h, int seconds) {
+        for (int i = seconds; i >= 0; i--) {
+            int stageIdx = Math.min(4, (i * 5) / (seconds == 0 ? 1 : seconds));
+            h.setDisplay(STAGES[stageIdx]);
+            if (i != 0) {
+                try { Thread.sleep(1000); } catch (Exception e) {}
+            }
+        }
     }
 
     public static void main(String[] args) {
@@ -191,8 +199,6 @@ public class Catapult {
         Hummingbird catapult = new Hummingbird();
         Scanner scan = new Scanner(System.in);
         boolean locked = true;
-        String red = "\u001B[31m";
-        String reset = "\u001B[0m";
 
         // Stops all hummingbird functions if ^C is used to stop
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -202,115 +208,22 @@ public class Catapult {
             scan.close();
         }));
 
-        // Setup for user with sanatized inputs
-        int notch;
-        while (true) {
-            try {
-                System.out.println("Input shot notch setting (1-6): ");
-                notch = scan.nextInt();
-                
-                if (notch > 6 || notch < 1) {
-                    System.out.println(red + notch + " is an invalid notch setting. Please input a number between 1 and 6." + reset);
-                } else {
-                    break;
-                }
-            } catch (Exception e) {
-                System.out.println("Invalid input. Please try again.");
-                scan.next();
-            }
-        }
-        System.out.println("Want to edit notch/timer (if using timer) after each shot? (y/n)");
-        String editNotch;
-        while(true){
-            try {
-                editNotch = scan.next();
-                if (!editNotch.equals("y") && !editNotch.equals("n")){
-                    while(!editNotch.equals("y") && !editNotch.equals("n")){
-                        System.out.println("\"" + editNotch + "\" is an invalid input. Please input \"y\" or \"n\".");
-                        editNotch = scan.next();
-                    }
-                }
-                break;
-            } catch (Exception e){
-                System.out.println("Invalid input. Please try again.");
-                editNotch = "n";
-            }
-        }
-        System.out.println("Using Target? (y/n)");
-        String useTarget;
-        while (true){
-            try {
-                useTarget = scan.next();
-                if (!useTarget.equals("y") && !useTarget.equals("n")){
-                    while(!useTarget.equals("y") && !useTarget.equals("n")){
-                        System.out.println("\"" + useTarget + "\" is an invalid input. Please input \"y\" or \"n\".");
-                        useTarget = scan.next();
-                    }
-                }
-                break;
-            } catch (Exception e){
-                System.out.println("Invalid input. Please try again.");
-                useTarget = "n";
-            }
-        }
-        System.out.println("Turn on timer mode? (y/n)");
-        String useTimer;
-        while (true) { 
-            try {
-                useTimer = scan.next();
-                if (!useTimer.equals("y") && !useTimer.equals("n")){
-                    while(!useTimer.equals("y") && !useTimer.equals("n")){
-                        System.out.println("\"" + useTimer + "\" is an invalid input. Please input \"y\" or \"n\".");
-                        useTimer = scan.next();
-                    }
-                }
-                break;
-            } catch (Exception e) {
-                System.out.println("Invalid input. Please try again.");
-                useTarget = "n";
-            }
-        }
+        // Setup for user with sanitized inputs
+        int notch = inputInt(scan, "Input shot notch setting (1-6): ", 1, 6, false);
+        String editNotch = inputString(scan, "Want to edit notch/timer (if using timer) after each shot? (y/n)", true);
+        String useTarget = inputString(scan, "Using Target? (y/n)", true);
+        String useTimer = inputString(scan, "Turn on timer mode? (y/n)", true);
         boolean useTime = useTimer.equals("y");
         int timeSetting;
         int timer;
         if (useTime) {
-            while (true) {
-                try {
-                    System.out.println("Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).");
-                    timeSetting = scan.nextInt();
-                    
-                    if (timeSetting > 3 || timeSetting < 1) {
-                        System.out.println(timeSetting + " is an invalid setting. Please input a number between 1 and 3.");
-                    } else {
-                        break;
-                    }
-                } catch (Exception e) {
-                    System.out.println("Invalid input. Please try again.");
-                    scan.next();
-                }
-            }
+            timeSetting = inputInt(scan, "Set time setting: Delay proximity sensing to start after threshold time (1), Fire when timer ends (2), or start timer to fire when object enters range (3).", 1, 3, false);
+            timer = inputInt(scan, "Set timer in seconds.", 0, 3600, false);
         } else {
             timeSetting = 0;
-        }
-        if (useTime) {
-            while (true) {
-                try {
-                    System.out.println("Set timer in seconds.");
-                    timer = scan.nextInt();
-                    
-                    if (timer > 3600 || timer < 1) {
-                        System.out.println("Timer cannot be set greater than one hour or less than 0 seconds. Please enter a valid number.");
-                    } else {
-                        break;
-                    }
-                } catch (Exception e) {
-                    System.out.println("Invalid input. Please try again.");
-                    scan.next();
-                }
-            }
-        } else {
             timer = 0;
         }
+
         // Ready servos and LEDs
         int pos = Catapult.setTarget(notch);
         if (useTarget.equals("y")){
@@ -343,64 +256,10 @@ public class Catapult {
                 catapult.setLED(2, 0);
                 locked = false;
 
-                // Define all the time stages
-                int[] fullTime = {
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1
-                };
-                int[] highTime = {
-                    0, 0, 0, 0, 0,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1
-                };
-                int[] midTime = {
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1
-                };
-                int[] lessTime = {
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1
-                };
-                int[] tinyTime = {
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    1, 1, 1, 1, 1
-                };
                 // Time setting 1 - Distance sensors start after timer ends
                 if (useTime && timeSetting == 1){
                     System.out.println("Timer is set: " + timer + " seconds.");
-                    for(int i = timer; i >= 0; i--){
-                        int stage = (i * 5) / timer;
-                        switch(stage) {
-                            // Light array follows stages as time decreases
-                            case 5 -> catapult.setDisplay(fullTime);
-                            case 4 -> catapult.setDisplay(highTime);
-                            case 3 -> catapult.setDisplay(midTime);
-                            case 2 -> catapult.setDisplay(lessTime);
-                            case 1 -> catapult.setDisplay(tinyTime);
-                            default -> catapult.setDisplay(tinyTime);
-                        }
-                        if (i != 0) {
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            }
-                        }
-                    }
+                    runCountdown(catapult, timer);
                     System.out.println("Timer finished. Catapult armed.");
                 }
                 int distance = catapult.getDistance(1);
@@ -408,53 +267,18 @@ public class Catapult {
                 // Time setting 2 - Shot fires when timer ends
                 if (useTime && timeSetting == 2){
                     System.out.println("Shot will be fired in: " + timer + " seconds.");
-                    for(int i = timer; i >= 0; i--){
-                        int stage = (i * 5) / timer;
-                        switch(stage) {
-                            // Light array follows stages as time decreases
-                            case 5 -> catapult.setDisplay(fullTime);
-                            case 4 -> catapult.setDisplay(highTime);
-                            case 3 -> catapult.setDisplay(midTime);
-                            case 2 -> catapult.setDisplay(lessTime);
-                            case 1 -> catapult.setDisplay(tinyTime);
-                            default -> catapult.setDisplay(tinyTime);
-                        }
-                        if (i != 0) {
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            }
-                        }
-                    }
+                    runCountdown(catapult, timer);
                     System.out.println("Timer finished. Firing.");
                 } else {
-                    // Sets initial LED pattern on MicroBit
-                    int[] borderPattern = {
-                        1, 1, 1, 1, 1,
-                        1, 0, 0, 0, 1,
-                        1, 0, 0, 0, 1,
-                        1, 0, 0, 0, 1,
-                        1, 1, 1, 1, 1
-                    };
-                    catapult.setDisplay(borderPattern);
-                    
-                    // Define the closer pattern when an object is closer
-                    int[] closerPattern = {
-                        0, 0, 0, 0, 0,
-                        0, 1, 1, 1, 0,
-                        0, 1, 0, 1, 0, 
-                        0, 1, 1, 1, 0,
-                        0, 0, 0, 0, 0
-                    };
+                    catapult.setDisplay(BORDER);
 
                     // Loop to check distance and update LED pattern until target is within range
                     while (distance > pos){
                         distance = catapult.getDistance(1);
                         if ((pos * 1.5) > distance) {
-                            catapult.setDisplay(closerPattern);
+                            catapult.setDisplay(CLOSER);
                         } else {
-                            catapult.setDisplay(borderPattern);
+                            catapult.setDisplay(BORDER);
                         }
                         if (catapult.getButton("A")){
                             System.out.println("Over-riding arm status and unlocking.");
@@ -466,40 +290,15 @@ public class Catapult {
                     }
                 }
                 if (locked == false) {
-                    // Define pattern for when projectile is shot
-                    int[] shootPattern = {
-                        0, 0, 0, 0, 0,
-                        0, 0, 0, 0, 0,
-                        0, 0, 1, 0, 0,
-                        0, 0, 0, 0, 0,
-                        0, 0, 0, 0, 0
-                    };
                     // Time Setting 3 - Timer starts when object enters proximity, will fire when timer ends
                     if (useTime && timeSetting == 3){
-                    System.out.println("Object has entered range. Timer is set: " + timer + " seconds.");
-                        for(int i = timer; i >= 0; i--){
-                            int stage = (i * 5) / timer;
-                            switch(stage) {
-                                // Light array follows stages as time decreases
-                                case 5 -> catapult.setDisplay(fullTime);
-                                case 4 -> catapult.setDisplay(highTime);
-                                case 3 -> catapult.setDisplay(midTime);
-                                case 2 -> catapult.setDisplay(lessTime);
-                                case 1 -> catapult.setDisplay(tinyTime);
-                                default -> catapult.setDisplay(tinyTime);
-                            }
-                            if (i != 0) {
-                                try {
-                                    Thread.sleep(1000);
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                }
-                            }
-                        }
+                        System.out.println("Object has entered range. Timer is set: " + timer + " seconds.");
+                        runCountdown(catapult, timer);
                         System.out.println("Timer finished. firing.");
                     }
+
                     // Display shoot pattern and turn off LEDs
-                    catapult.setDisplay(shootPattern);
+                    catapult.setDisplay(SHOOT);
                     catapult.setLED(1, 0);
                     catapult.setLED(2, 100);
 
@@ -546,15 +345,7 @@ public class Catapult {
                         System.out.println("\nShot aborted.");
                     }
                 }
-                // Turns off MicroBit LED array
-                int[] turnOff = {
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0
-                };
-                catapult.setDisplay(turnOff);
+                catapult.setDisplay(OFF);
             }
         }
     }
